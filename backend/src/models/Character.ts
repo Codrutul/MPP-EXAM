@@ -1,4 +1,7 @@
-import mongoose from 'mongoose';
+import mongoose, { Document } from 'mongoose';
+import type { CharacterCreate } from '../types';
+
+export interface CharacterDocument extends Document, CharacterCreate {}
 
 const characterSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -15,4 +18,4 @@ const characterSchema = new mongoose.Schema({
   timestamps: true
 });
 
-export const Character = mongoose.model('Character', characterSchema); 
+export const Character = mongoose.model<CharacterDocument>('Character', characterSchema); 

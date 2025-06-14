@@ -3,11 +3,9 @@ import cors from 'cors';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
 import mongoose from 'mongoose';
-import { Character } from './models/Character';
+import { Character as CharacterModel, CharacterDocument } from './models/Character';
 import { GameSession } from './models/GameSession';
-import { v4 as uuidv4 } from 'uuid';
-import { CharacterCreate } from './types';
-import { generateRandomStats } from './utils/characterUtils';
+import type { CharacterCreate } from './types';
 
 const app = express();
 const httpServer = createServer(app);
@@ -34,92 +32,9 @@ app.use((req, res, next) => {
 app.use(cors());
 app.use(express.json());
 
-// Initial characters
-const initialCharacters: Character[] = [
-  {
-    id: uuidv4(),
-    name: "Stormweaver",
-    class: "Mage",
-    level: 25,
-    hp: 1500,
-    damage: 180,
-    armor: 40,
-    magicResistance: 80,
-    criticalChance: 15,
-    imageUrl: "https://static1.srcdn.com/wordpress/wp-content/uploads/2022/04/How-Old-Is-Geralt-of-Rivia.jpg",
-    description: "A powerful mage who controls the elements."
-  },
-  {
-    id: uuidv4(),
-    name: "Ironheart",
-    class: "Warrior",
-    level: 30,
-    hp: 2200,
-    damage: 150,
-    armor: 85,
-    magicResistance: 45,
-    criticalChance: 10,
-    imageUrl: "https://static1.srcdn.com/wordpress/wp-content/uploads/2022/04/How-Old-Is-Geralt-of-Rivia.jpg",
-    description: "A stalwart warrior with unbreakable defense."
-  },
-  {
-    id: uuidv4(),
-    name: "Shadowblade",
-    class: "Rogue",
-    level: 28,
-    hp: 1600,
-    damage: 200,
-    armor: 45,
-    magicResistance: 35,
-    criticalChance: 25,
-    imageUrl: "https://static1.srcdn.com/wordpress/wp-content/uploads/2022/04/How-Old-Is-Geralt-of-Rivia.jpg",
-    description: "A deadly assassin who strikes from the shadows."
-  },
-  {
-    id: uuidv4(),
-    name: "Lightbringer",
-    class: "Paladin",
-    level: 27,
-    hp: 1900,
-    damage: 160,
-    armor: 70,
-    magicResistance: 65,
-    criticalChance: 12,
-    imageUrl: "https://static1.srcdn.com/wordpress/wp-content/uploads/2022/04/How-Old-Is-Geralt-of-Rivia.jpg",
-    description: "A holy warrior blessed with divine power."
-  }
-];
-
-// In-memory storage
-const characters: Character[] = [...initialCharacters];
-
-// Character generation constants
-const CLASSES = ['Warrior', 'Rogue', 'Mage', 'Paladin'];
-const NAMES_PREFIX = ['Brave', 'Swift', 'Mighty', 'Wise', 'Dark', 'Light', 'Storm', 'Fire', 'Ice'];
-const NAMES_SUFFIX = ['blade', 'heart', 'soul', 'mind', 'fist', 'spirit', 'walker', 'weaver', 'master'];
-
-// Helper function to generate random character
-const generateRandomCharacter = (): CharacterCreate => {
-  const randomClass = CLASSES[Math.floor(Math.random() * CLASSES.length)];
-  const prefix = NAMES_PREFIX[Math.floor(Math.random() * NAMES_PREFIX.length)];
-  const suffix = NAMES_SUFFIX[Math.floor(Math.random() * NAMES_SUFFIX.length)];
-  
-  return {
-    name: `${prefix}${suffix}`,
-    class: randomClass,
-    level: Math.floor(Math.random() * 30) + 1,
-    hp: Math.floor(Math.random() * 2000) + 1000,
-    damage: Math.floor(Math.random() * 200) + 100,
-    armor: Math.floor(Math.random() * 100) + 1,
-    magicResistance: Math.floor(Math.random() * 100) + 1,
-    criticalChance: Math.floor(Math.random() * 30) + 1,
-    imageUrl: "https://static1.srcdn.com/wordpress/wp-content/uploads/2022/04/How-Old-Is-Geralt-of-Rivia.jpg",
-    description: `A mysterious ${randomClass.toLowerCase()} known for their exceptional abilities and unique fighting style.`
-  };
-};
-
 // Calculate statistics
-const calculateStats = () => {
+const calculateStats = async () => {
+  const characters = await CharacterModel.find();
   const classCounts = new Map<string, number>();
   const classStats = new Map<string, { 
     levels: number[], 
@@ -161,99 +76,29 @@ const calculateStats = () => {
 };
 
 // Broadcast updated statistics to all clients
-const broadcastStats = () => {
-  const stats = calculateStats();
+const broadcastStats = async () => {
+  const stats = await calculateStats();
   io.emit('statsUpdate', stats);
 };
 
-// REST API endpoints
-app.get('/api/characters', async (req, res) => {
-  try {
-    const characters = await Character.find();
-    res.json(characters);
-  } catch (error) {
-    console.error('Error fetching characters:', error);
-    res.status(500).json({ error: 'Failed to fetch characters' });
-  }
-});
-
-app.post('/api/characters', async (req, res) => {
-  try {
-    const character = new Character(req.body);
-    await character.save();
-    res.status(201).json(character);
-  } catch (error) {
-    console.error('Error creating character:', error);
-    res.status(500).json({ error: 'Failed to create character' });
-  }
-});
-
-app.put('/api/characters/:id', async (req, res) => {
-  try {
-    const character = await Character.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
-    if (!character) {
-      return res.status(404).json({ error: 'Character not found' });
-    }
-    res.json(character);
-  } catch (error) {
-    console.error('Error updating character:', error);
-    res.status(500).json({ error: 'Failed to update character' });
-  }
-});
-
-app.delete('/api/characters/:id', async (req, res) => {
-  try {
-    const character = await Character.findByIdAndDelete(req.params.id);
-    if (!character) {
-      return res.status(404).json({ error: 'Character not found' });
-    }
-    res.status(204).send();
-  } catch (error) {
-    console.error('Error deleting character:', error);
-    res.status(500).json({ error: 'Failed to delete character' });
-  }
-});
-
-// Auto-generation of characters
-let autoGenerateInterval: NodeJS.Timeout | null = null;
-
-io.on('connection', (socket) => {
+// Socket.IO connection handling
+io.on('connection', async (socket) => {
   console.log('Client connected');
   
   // Send initial statistics
-  socket.emit('statsUpdate', calculateStats());
-  
-  // Handle auto-generation toggle
-  socket.on('toggleAutoGenerate', (enabled: boolean) => {
-    if (enabled && !autoGenerateInterval) {
-      autoGenerateInterval = setInterval(() => {
-        const newCharacter: Character = {
-          id: uuidv4(),
-          ...generateRandomCharacter()
-        };
-        characters.push(newCharacter);
-        io.emit('characterCreated', newCharacter);
-        broadcastStats();
-      }, 5000);
-    } else if (!enabled && autoGenerateInterval) {
-      clearInterval(autoGenerateInterval);
-      autoGenerateInterval = null;
-    }
-  });
+  const stats = await calculateStats();
+  socket.emit('statsUpdate', stats);
   
   socket.on('disconnect', () => {
     console.log('Client disconnected');
   });
 });
 
+// Game session endpoints
 app.post('/api/game-sessions', async (req, res) => {
   try {
     const { characterId } = req.body;
-    const character = await Character.findById(characterId);
+    const character: CharacterDocument | null = await CharacterModel.findById(characterId);
     
     if (!character) {
       return res.status(404).json({ error: 'Character not found' });
@@ -279,6 +124,7 @@ app.post('/api/game-sessions', async (req, res) => {
   }
 });
 
+// Game session retrieval endpoint
 app.get('/api/game-sessions/:id', async (req, res) => {
   try {
     const gameSession = await GameSession.findById(req.params.id);
@@ -289,6 +135,63 @@ app.get('/api/game-sessions/:id', async (req, res) => {
   } catch (error) {
     console.error('Error fetching game session:', error);
     res.status(500).json({ error: 'Failed to fetch game session' });
+  }
+});
+
+// Character endpoints
+app.get('/api/characters', async (req, res) => {
+  try {
+    const characters: CharacterDocument[] = await CharacterModel.find();
+    res.json(characters);
+  } catch (error) {
+    console.error('Error fetching characters:', error);
+    res.status(500).json({ error: 'Failed to fetch characters' });
+  }
+});
+
+app.post('/api/characters', async (req, res) => {
+  try {
+    const characterData: CharacterCreate = req.body;
+    const character = new CharacterModel(characterData);
+    await character.save();
+    await broadcastStats();
+    res.status(201).json(character);
+  } catch (error) {
+    console.error('Error creating character:', error);
+    res.status(500).json({ error: 'Failed to create character' });
+  }
+});
+
+app.put('/api/characters/:id', async (req, res) => {
+  try {
+    const characterData: Partial<CharacterCreate> = req.body;
+    const character: CharacterDocument | null = await CharacterModel.findByIdAndUpdate(
+      req.params.id,
+      characterData,
+      { new: true }
+    );
+    if (!character) {
+      return res.status(404).json({ error: 'Character not found' });
+    }
+    await broadcastStats();
+    res.json(character);
+  } catch (error) {
+    console.error('Error updating character:', error);
+    res.status(500).json({ error: 'Failed to update character' });
+  }
+});
+
+app.delete('/api/characters/:id', async (req, res) => {
+  try {
+    const character: CharacterDocument | null = await CharacterModel.findByIdAndDelete(req.params.id);
+    if (!character) {
+      return res.status(404).json({ error: 'Character not found' });
+    }
+    await broadcastStats();
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting character:', error);
+    res.status(500).json({ error: 'Failed to delete character' });
   }
 });
 
