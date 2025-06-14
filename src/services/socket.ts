@@ -11,53 +11,45 @@ interface ClientToServerEvents {
   requestStats: () => void;
 }
 
+export const socket = io('https://mpp-exam.onrender.com', {
+  transports: ['websocket'],
+  autoConnect: true,
+});
+
+socket.on('connect', () => {
+  console.log('Socket: Connected to server');
+});
+
+socket.on('disconnect', () => {
+  console.log('Socket: Disconnected from server');
+});
+
+socket.on('connect_error', (error) => {
+  console.error('Socket: Connection error:', error);
+});
+
 class SocketService {
-  private socket: Socket<ServerToClientEvents, ClientToServerEvents>;
-  private statsListeners: ((stats: ClassStats[]) => void)[] = [];
+  private socket: Socket;
   private characterCreatedListeners: ((character: Character) => void)[] = [];
+  private statsUpdateListeners: ((stats: ClassStats) => void)[] = [];
 
   constructor() {
     console.log('Initializing socket connection...');
-    this.socket = io('http://localhost:3000', {
+    this.socket = io('https://mpp-exam.onrender.com', {
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000
     });
 
-    this.socket.on('connect', () => {
-      console.log('Socket connected successfully');
-    });
-
-    this.socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
-    });
-
-    this.socket.on('statsUpdate', (stats) => {
+    this.socket.on('statsUpdate', (stats: ClassStats) => {
       console.log('Received stats update:', stats);
-      this.statsListeners.forEach(listener => listener(stats));
+      this.statsUpdateListeners.forEach(listener => listener(stats));
     });
 
-    this.socket.on('characterCreated', (character) => {
-      console.log('Received new character:', character);
+    this.socket.on('characterCreated', (character: Character) => {
+      console.log('Character created:', character);
       this.characterCreatedListeners.forEach(listener => listener(character));
     });
-
-    this.socket.on('disconnect', () => {
-      console.log('Socket disconnected');
-    });
-  }
-
-  onStatsUpdate(listener: (stats: ClassStats[]) => void) {
-    console.log('Adding stats listener');
-    this.statsListeners.push(listener);
-    // Request initial stats if we're connected
-    if (this.socket.connected) {
-      this.requestStats();
-    }
-    return () => {
-      console.log('Removing stats listener');
-      this.statsListeners = this.statsListeners.filter(l => l !== listener);
-    };
   }
 
   onCharacterCreated(listener: (character: Character) => void) {
@@ -67,14 +59,20 @@ class SocketService {
     };
   }
 
-  toggleAutoGenerate(enabled: boolean) {
-    console.log('Toggling auto-generate:', enabled);
-    this.socket.emit('toggleAutoGenerate', enabled);
+  onStatsUpdate(listener: (stats: ClassStats) => void) {
+    this.statsUpdateListeners.push(listener);
+    return () => {
+      this.statsUpdateListeners = this.statsUpdateListeners.filter(l => l !== listener);
+    };
   }
 
   requestStats() {
-    console.log('Requesting stats update');
     this.socket.emit('requestStats');
+  }
+
+  toggleAutoGenerate(enabled: boolean) {
+    console.log('Toggling auto-generate:', enabled);
+    this.socket.emit('toggleAutoGenerate', enabled);
   }
 
   disconnect() {
@@ -83,4 +81,11 @@ class SocketService {
   }
 }
 
-export const socketService = new SocketService(); 
+export const socketService = new SocketService();
+
+export const subscribeToCharacterUpdates = (callback: () => void) => {
+  socket.on('charactersUpdated', callback);
+  return () => {
+    socket.off('charactersUpdated', callback);
+  };
+}; 

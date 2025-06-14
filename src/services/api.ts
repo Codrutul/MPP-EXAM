@@ -1,6 +1,6 @@
-import type { Character } from '../types';
+import type { Character, GameSession } from '../types';
 
-const API_URL = 'http://localhost:3000/api';
+const API_URL = 'https://mpp-exam.onrender.com/api';
 
 export const api = {
   getCharacters: async (): Promise<Character[]> => {
@@ -61,5 +61,35 @@ export const api = {
       throw new Error('Failed to delete character');
     }
     console.log('API: Character deleted', id);
+  },
+
+  startGameSession: async (characterId: string): Promise<GameSession> => {
+    console.log('API: Starting game session for character', characterId);
+    const response = await fetch(`${API_URL}/game-sessions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ characterId }),
+    });
+    if (!response.ok) {
+      console.error('API: Failed to start game session', response.status, response.statusText);
+      throw new Error('Failed to start game session');
+    }
+    const data = await response.json();
+    console.log('API: Game session started', data);
+    return data;
+  },
+
+  getGameSession: async (sessionId: string): Promise<GameSession> => {
+    console.log('API: Fetching game session', sessionId);
+    const response = await fetch(`${API_URL}/game-sessions/${sessionId}`);
+    if (!response.ok) {
+      console.error('API: Failed to fetch game session', response.status, response.statusText);
+      throw new Error('Failed to fetch game session');
+    }
+    const data = await response.json();
+    console.log('API: Received game session', data);
+    return data;
   },
 }; 

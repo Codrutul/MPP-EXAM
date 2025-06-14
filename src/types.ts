@@ -16,10 +16,20 @@ export interface Character extends CharacterCreate {
 }
 
 export interface ClassStats {
-  name: string;
+  class: string;
   count: number;
-  avgLevel: number;
-  avgHP: number;
-  avgDamage: number;
-  avgArmor: number;
+  averageLevel: number;
+  averageHp: number;
+  averageDamage: number;
+}
+
+export interface GameSession {
+  _id: string;
+  characterId: string;
+  characterName: string;
+  position: {
+    x: number;
+    y: number;
+  };
+  createdAt: string;
 } 

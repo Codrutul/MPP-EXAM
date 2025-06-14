@@ -4,6 +4,10 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
 import { Character, CharacterCreate } from './types';
+import mongoose from 'mongoose';
+import { Character as CharacterModel } from './models/Character';
+import { GameSession } from './models/GameSession';
+import { generateRandomStats } from './utils/characterUtils';
 
 const app = express();
 const httpServer = createServer(app);
@@ -239,6 +243,48 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log('Client disconnected');
   });
+});
+
+app.post('/api/game-sessions', async (req, res) => {
+  try {
+    const { characterId } = req.body;
+    const character = await CharacterModel.findById(characterId);
+    
+    if (!character) {
+      return res.status(404).json({ error: 'Character not found' });
+    }
+
+    // Generate random position within a 20x20 grid
+    const position = {
+      x: Math.floor(Math.random() * 20),
+      y: Math.floor(Math.random() * 20)
+    };
+
+    const gameSession = new GameSession({
+      characterId,
+      characterName: character.name,
+      position
+    });
+
+    await gameSession.save();
+    res.status(201).json(gameSession);
+  } catch (error) {
+    console.error('Error creating game session:', error);
+    res.status(500).json({ error: 'Failed to create game session' });
+  }
+});
+
+app.get('/api/game-sessions/:id', async (req, res) => {
+  try {
+    const gameSession = await GameSession.findById(req.params.id);
+    if (!gameSession) {
+      return res.status(404).json({ error: 'Game session not found' });
+    }
+    res.json(gameSession);
+  } catch (error) {
+    console.error('Error fetching game session:', error);
+    res.status(500).json({ error: 'Failed to fetch game session' });
+  }
 });
 
 const PORT = process.env.PORT || 3000;
