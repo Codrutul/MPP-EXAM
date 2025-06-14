@@ -17,7 +17,7 @@ const io = new Server(httpServer, {
 });
 
 // Connect to MongoDB
-const MONGODB_URI = "mongodb+srv://afloareicodrut:J3Ir0VKx4ydI8qur@atlas-sql-684d54d9da06de032fde371e-wvid5b.a.query.mongodb.net/mmo-rpg?ssl=true&authSource=admin";
+const MONGODB_URI = "mongodb+srv://afloareicodrut:J3Ir0VKx4ydI8qur@cluster0.gthabfz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
 mongoose.connect(MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))
