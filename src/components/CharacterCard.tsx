@@ -24,59 +24,59 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character, onDelet
               <title>Game - ${character.name}</title>
               <style>
                 body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
+                .game-grid { 
+                  display: grid;
+                  grid-template-columns: repeat(20, 30px);
+                  gap: 1px;
+                  background-color: #ccc;
+                  padding: 10px;
+                  margin: 20px;
+                }
+                .grid-cell {
+                  width: 30px;
+                  height: 30px;
+                  background-color: white;
+                  border: 1px solid #eee;
+                  position: relative;
+                }
+                .character {
+                  width: 100%;
+                  height: 100%;
+                  background-image: url(${geraltImage});
+                  background-size: cover;
+                  background-position: center;
+                }
+                .character-name {
+                  position: absolute;
+                  bottom: -20px;
+                  left: 50%;
+                  transform: translateX(-50%);
+                  white-space: nowrap;
+                  font-size: 12px;
+                }
               </style>
             </head>
             <body>
-              <div id="game-root"></div>
-              <script>
-                window.gameSession = ${JSON.stringify(session)};
-              </script>
-            </body>
-          </html>
-        `);
-        // Mount the GameWindow component in the new window
-        const root = gameWindow.document.getElementById('game-root');
-        if (root) {
-          root.innerHTML = `
-            <div class="game-window">
-              <h2>Game Window - ${session.characterName}</h2>
-              <div style="display: grid; grid-template-columns: repeat(20, 30px); gap: 1px; background-color: #ccc; padding: 10px; margin: 20px;">
+              <h2>Game Window - ${character.name}</h2>
+              <div class="game-grid">
                 ${Array.from({ length: 400 }).map((_, i) => {
                   const x = i % 20;
                   const y = Math.floor(i / 20);
                   const isCharacterHere = x === session.position.x && y === session.position.y;
                   return `
-                    <div style="
-                      width: 30px;
-                      height: 30px;
-                      background-color: white;
-                      border: 1px solid #eee;
+                    <div class="grid-cell">
                       ${isCharacterHere ? `
-                        background-image: url(${geraltImage});
-                        background-size: cover;
-                        background-position: center;
-                        position: relative;
-                      ` : ''}
-                    ">
-                      ${isCharacterHere ? `
-                        <div style="
-                          position: absolute;
-                          bottom: -20px;
-                          left: 50%;
-                          transform: translateX(-50%);
-                          white-space: nowrap;
-                          font-size: 12px;
-                        ">
-                          ${session.characterName}
+                        <div class="character">
+                          <div class="character-name">${character.name}</div>
                         </div>
                       ` : ''}
                     </div>
                   `;
                 }).join('')}
               </div>
-            </div>
-          `;
-        }
+            </body>
+          </html>
+        `);
       }
     } catch (error) {
       console.error('Failed to start game:', error);
@@ -100,10 +100,18 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character, onDelet
         <p>Critical Chance: {character.criticalChance}%</p>
       </div>
       <p className="character-description">{character.description}</p>
-      <div className="character-actions">
+      <div className="character-actions" style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
         <button 
           onClick={() => onDelete(character.id)}
           className="delete-button"
+          style={{
+            backgroundColor: '#dc3545',
+            color: 'white',
+            padding: '8px 16px',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
         >
           Delete
         </button>
@@ -118,7 +126,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character, onDelet
             border: 'none',
             borderRadius: '4px',
             cursor: isLoading ? 'not-allowed' : 'pointer',
-            marginLeft: '8px'
+            opacity: isLoading ? 0.7 : 1
           }}
         >
           {isLoading ? 'Starting...' : 'Start Game'}

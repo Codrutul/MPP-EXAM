@@ -37,6 +37,7 @@ export const CharacterList = () => {
   const [isAutoCreating, setIsAutoCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isStartingGame, setIsStartingGame] = useState(false);
 
   // Fetch initial characters
   useEffect(() => {
@@ -108,9 +109,9 @@ export const CharacterList = () => {
     if (window.confirm('Are you sure you want to delete this character?')) {
       try {
         await api.deleteCharacter(id);
-        setCharacters(prev => prev.filter(char => char.id !== id));
-        if (selectedCharacter?.id === id) {
-          setSelectedCharacter(characters.find(c => c.id !== id) || null);
+        setCharacters(prev => prev.filter(char => char._id !== id));
+        if (selectedCharacter?._id === id) {
+          setSelectedCharacter(characters.find(c => c._id !== id) || null);
         }
       } catch (err) {
         setError('Failed to delete character');
@@ -122,6 +123,84 @@ export const CharacterList = () => {
   const startEditing = (character: Character) => {
     setEditingCharacter(character);
     setShowForm(true);
+  };
+
+  const handleStartGame = async () => {
+    if (!selectedCharacter) return;
+    
+    try {
+      setIsStartingGame(true);
+      const session = await api.startGameSession(selectedCharacter._id);
+      
+      // Open game window in a new window
+      const gameWindow = window.open('', '_blank', 'width=800,height=800');
+      if (gameWindow) {
+        gameWindow.document.write(`
+          <html>
+            <head>
+              <title>Game - ${selectedCharacter.name}</title>
+              <style>
+                body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
+                .game-grid { 
+                  display: grid;
+                  grid-template-columns: repeat(20, 30px);
+                  gap: 1px;
+                  background-color: #ccc;
+                  padding: 10px;
+                  margin: 20px;
+                }
+                .grid-cell {
+                  width: 30px;
+                  height: 30px;
+                  background-color: white;
+                  border: 1px solid #eee;
+                  position: relative;
+                }
+                .character {
+                  width: 100%;
+                  height: 100%;
+                  background-image: url(${selectedCharacter.imageUrl});
+                  background-size: cover;
+                  background-position: center;
+                }
+                .character-name {
+                  position: absolute;
+                  bottom: -20px;
+                  left: 50%;
+                  transform: translateX(-50%);
+                  white-space: nowrap;
+                  font-size: 12px;
+                }
+              </style>
+            </head>
+            <body>
+              <h2>Game Window - ${selectedCharacter.name}</h2>
+              <div class="game-grid">
+                ${Array.from({ length: 400 }).map((_, i) => {
+                  const x = i % 20;
+                  const y = Math.floor(i / 20);
+                  const isCharacterHere = x === session.position.x && y === session.position.y;
+                  return `
+                    <div class="grid-cell">
+                      ${isCharacterHere ? `
+                        <div class="character">
+                          <div class="character-name">${selectedCharacter.name}</div>
+                        </div>
+                      ` : ''}
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </body>
+          </html>
+        `);
+      }
+    } catch (error) {
+      console.error('Failed to start game:', error);
+      alert('Failed to start game. Please try again.');
+    } finally {
+      setIsStartingGame(false);
+    }
   };
 
   if (error) {
@@ -153,8 +232,8 @@ export const CharacterList = () => {
           
           {characters.map(character => (
             <div
-              key={character.id}
-              className={`character-item ${selectedCharacter?.id === character.id ? 'selected' : ''}`}
+              key={character._id}
+              className={`character-item ${selectedCharacter?._id === character._id ? 'selected' : ''}`}
               onClick={() => setSelectedCharacter(character)}
             >
               <div className="character-item-content">
@@ -178,7 +257,7 @@ export const CharacterList = () => {
                   className="btn-delete"
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleDeleteCharacter(character.id);
+                    handleDeleteCharacter(character._id);
                   }}
                 >
                   Delete
@@ -227,6 +306,27 @@ export const CharacterList = () => {
                 <label>Crit Chance:</label>
                 <span>{selectedCharacter.criticalChance}%</span>
               </div>
+            </div>
+
+            <div className="character-actions" style={{ marginTop: '2rem', display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <button 
+                onClick={handleStartGame}
+                className="btn-start-game"
+                disabled={isStartingGame}
+                style={{
+                  backgroundColor: '#4CAF50',
+                  color: 'white',
+                  padding: '12px 24px',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: isStartingGame ? 'not-allowed' : 'pointer',
+                  fontSize: '1rem',
+                  fontWeight: 'bold',
+                  opacity: isStartingGame ? 0.7 : 1
+                }}
+              >
+                {isStartingGame ? 'Starting Game...' : 'Start Game'}
+              </button>
             </div>
           </div>
         )}

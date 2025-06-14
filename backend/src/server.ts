@@ -1,12 +1,12 @@
-import express, { Request, Response } from 'express';
-import { createServer } from 'http';
-import { Server } from 'socket.io';
+import express from 'express';
 import cors from 'cors';
-import { v4 as uuidv4 } from 'uuid';
-import { Character, CharacterCreate } from './types';
+import { Server } from 'socket.io';
+import { createServer } from 'http';
 import mongoose from 'mongoose';
-import { Character as CharacterModel } from './models/Character';
+import { Character } from './models/Character';
 import { GameSession } from './models/GameSession';
+import { v4 as uuidv4 } from 'uuid';
+import { CharacterCreate } from './types';
 import { generateRandomStats } from './utils/characterUtils';
 
 const app = express();
@@ -17,6 +17,13 @@ const io = new Server(httpServer, {
     methods: ["GET", "POST", "PUT", "DELETE"]
   }
 });
+
+// Connect to MongoDB
+const MONGODB_URI = "mongodb+srv://afloareicodrut:J3Ir0VKx4ydI8qur@atlas-sql-684d54d9da06de032fde371e-wvid5b.a.query.mongodb.net/mmo-rpg?ssl=true&authSource=admin";
+
+mongoose.connect(MONGODB_URI)
+  .then(() => console.log('Connected to MongoDB'))
+  .catch(err => console.error('Failed to connect to MongoDB:', err));
 
 // Add logging middleware
 app.use((req, res, next) => {
@@ -160,57 +167,55 @@ const broadcastStats = () => {
 };
 
 // REST API endpoints
-app.get('/api/characters', (_req: Request, res: Response) => {
-  console.log('[API] GET /api/characters - Fetching all characters');
-  res.json(characters);
-});
-
-app.post('/api/characters', (req: Request, res: Response) => {
-  console.log('[API] POST /api/characters - Creating new character:', req.body.name);
-  const characterData: CharacterCreate = req.body;
-  const newCharacter: Character = {
-    id: uuidv4(),
-    ...characterData
-  };
-  
-  characters.push(newCharacter);
-  broadcastStats();
-  res.status(201).json(newCharacter);
-});
-
-app.put('/api/characters/:id', (req: Request, res: Response) => {
-  console.log(`[API] PUT /api/characters/${req.params.id} - Updating character:`, req.body.name);
-  const { id } = req.params;
-  const characterData: CharacterCreate = req.body;
-  
-  const index = characters.findIndex(c => c.id === id);
-  if (index === -1) {
-    console.log(`[API] Character not found with id: ${id}`);
-    return res.status(404).json({ error: 'Character not found' });
+app.get('/api/characters', async (req, res) => {
+  try {
+    const characters = await Character.find();
+    res.json(characters);
+  } catch (error) {
+    console.error('Error fetching characters:', error);
+    res.status(500).json({ error: 'Failed to fetch characters' });
   }
-  
-  characters[index] = {
-    ...characterData,
-    id
-  };
-  
-  broadcastStats();
-  res.json(characters[index]);
 });
 
-app.delete('/api/characters/:id', (req: Request, res: Response) => {
-  console.log(`[API] DELETE /api/characters/${req.params.id} - Deleting character`);
-  const { id } = req.params;
-  
-  const index = characters.findIndex(c => c.id === id);
-  if (index === -1) {
-    console.log(`[API] Character not found with id: ${id}`);
-    return res.status(404).json({ error: 'Character not found' });
+app.post('/api/characters', async (req, res) => {
+  try {
+    const character = new Character(req.body);
+    await character.save();
+    res.status(201).json(character);
+  } catch (error) {
+    console.error('Error creating character:', error);
+    res.status(500).json({ error: 'Failed to create character' });
   }
-  
-  characters.splice(index, 1);
-  broadcastStats();
-  res.status(204).send();
+});
+
+app.put('/api/characters/:id', async (req, res) => {
+  try {
+    const character = await Character.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+    if (!character) {
+      return res.status(404).json({ error: 'Character not found' });
+    }
+    res.json(character);
+  } catch (error) {
+    console.error('Error updating character:', error);
+    res.status(500).json({ error: 'Failed to update character' });
+  }
+});
+
+app.delete('/api/characters/:id', async (req, res) => {
+  try {
+    const character = await Character.findByIdAndDelete(req.params.id);
+    if (!character) {
+      return res.status(404).json({ error: 'Character not found' });
+    }
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting character:', error);
+    res.status(500).json({ error: 'Failed to delete character' });
+  }
 });
 
 // Auto-generation of characters
@@ -248,7 +253,7 @@ io.on('connection', (socket) => {
 app.post('/api/game-sessions', async (req, res) => {
   try {
     const { characterId } = req.body;
-    const character = await CharacterModel.findById(characterId);
+    const character = await Character.findById(characterId);
     
     if (!character) {
       return res.status(404).json({ error: 'Character not found' });
@@ -261,7 +266,7 @@ app.post('/api/game-sessions', async (req, res) => {
     };
 
     const gameSession = new GameSession({
-      characterId,
+      characterId: character._id,
       characterName: character.name,
       position
     });

@@ -15,7 +15,7 @@ export const api = {
     return data;
   },
 
-  createCharacter: async (character: Omit<Character, 'id'>): Promise<Character> => {
+  createCharacter: async (character: Omit<Character, '_id'>): Promise<Character> => {
     console.log('API: Creating character', character);
     const response = await fetch(`${API_URL}/characters`, {
       method: 'POST',
@@ -33,7 +33,7 @@ export const api = {
     return data;
   },
 
-  updateCharacter: async (id: string, character: Omit<Character, 'id'>): Promise<Character> => {
+  updateCharacter: async (id: string, character: Omit<Character, '_id'>): Promise<Character> => {
     console.log('API: Updating character', id, character);
     const response = await fetch(`${API_URL}/characters/${id}`, {
       method: 'PUT',

@@ -11,8 +11,20 @@ export interface CharacterCreate {
   description: string;
 }
 
-export interface Character extends CharacterCreate {
-  id: string;
+export interface Character {
+  _id: string;
+  name: string;
+  class: string;
+  level: number;
+  hp: number;
+  damage: number;
+  armor: number;
+  magicResistance: number;
+  criticalChance: number;
+  imageUrl: string;
+  description: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ClassStats {
@@ -32,4 +44,5 @@ export interface GameSession {
     y: number;
   };
   createdAt: string;
+  updatedAt?: string;
 } 

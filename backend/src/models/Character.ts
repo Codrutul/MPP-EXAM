@@ -11,6 +11,8 @@ const characterSchema = new mongoose.Schema({
   criticalChance: { type: Number, required: true },
   imageUrl: { type: String, required: true },
   description: { type: String, required: true }
+}, {
+  timestamps: true
 });
 
 export const Character = mongoose.model('Character', characterSchema); 
