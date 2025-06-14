@@ -7,29 +7,101 @@ import { Character as CharacterModel, CharacterDocument } from './models/Charact
 import { GameSession } from './models/GameSession';
 import type { CharacterCreate } from './types';
 
+// Debug logging for MongoDB queries
+mongoose.set('debug', true);
+
 const app = express();
 const httpServer = createServer(app);
+
+// CORS configuration
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://mpp-exam.onrender.com"
+];
+
+// Configure Socket.IO with CORS
 const io = new Server(httpServer, {
   cors: {
-    origin: "http://localhost:5173", // Vite's default port
+    origin: allowedOrigins,
     methods: ["GET", "POST", "PUT", "DELETE"]
   }
 });
 
+// Configure Express CORS
+app.use(cors({
+  origin: allowedOrigins,
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+}));
+
 // Connect to MongoDB
-const MONGODB_URI = "mongodb+srv://afloareicodrut:J3Ir0VKx4ydI8qur@cluster0.gthabfz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+const MONGODB_URI = "mongodb+srv://afloareicodrut:J3Ir0VKx4ydI8qur@cluster0.gthabfz.mongodb.net/mmo-rpg?retryWrites=true&w=majority&appName=Cluster0";
 
-mongoose.connect(MONGODB_URI)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error('Failed to connect to MongoDB:', err));
+// MongoDB connection options
+const mongooseOptions = {
+  serverSelectionTimeoutMS: 30000,
+  socketTimeoutMS: 45000,
+  connectTimeoutMS: 30000,
+  keepAlive: true,
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+};
 
-// Add logging middleware
+// More detailed connection logging
+console.log('Attempting to connect to MongoDB...');
+console.log('Connection string:', MONGODB_URI.replace(/:[^:/@]+@/, ':****@')); // Hide password in logs
+
+mongoose.connect(MONGODB_URI, mongooseOptions)
+  .then(() => {
+    console.log('Successfully connected to MongoDB');
+    console.log('Database name:', mongoose.connection.name);
+    console.log('Connection state:', mongoose.connection.readyState);
+  })
+  .catch(err => {
+    console.error('Failed to connect to MongoDB:', err);
+    console.error('Error details:', {
+      name: err.name,
+      message: err.message,
+      code: err.code,
+      codeName: err.codeName
+    });
+    process.exit(1);
+  });
+
+// Handle MongoDB connection events
+mongoose.connection.on('error', err => {
+  console.error('MongoDB connection error:', err);
+  console.error('Error details:', {
+    name: err.name,
+    message: err.message,
+    code: err.code,
+    codeName: err.codeName
+  });
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.log('MongoDB disconnected. Connection state:', mongoose.connection.readyState);
+});
+
+mongoose.connection.on('reconnected', () => {
+  console.log('MongoDB reconnected. Connection state:', mongoose.connection.readyState);
+});
+
+// Request logging middleware
 app.use((req, res, next) => {
+  const start = Date.now();
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  console.log('Request headers:', req.headers);
+  console.log('Request body:', req.body);
+  
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} completed in ${duration}ms with status ${res.statusCode}`);
+  });
+  
   next();
 });
 
-app.use(cors());
 app.use(express.json());
 
 // Calculate statistics
